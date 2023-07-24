@@ -3,6 +3,16 @@ import numpy as np
 from gym import spaces
 
 # Initialize a custom environment which we downlaoded from github.
+''' 
+We updated the following steps: 
+    1. Regularization: Added a transactions cost of 0.1% whenever the stock is bought or sold. 
+    2. 
+
+Possibilities: 
+    - The action space is currently defined to be continuous however a discrete action space of 3: 'Buy', 'Sell' and 'hold' 
+        could be added as well. 
+
+'''
 # Tradin Env:
 class CustomStockTradingEnv(gym.Env):
     def __init__(self, df, window_size=10, k=1000, num_features=6, starting_balance=100000):
@@ -20,6 +30,8 @@ class CustomStockTradingEnv(gym.Env):
         self.action_space = spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-k, high=k, shape=(window_size, num_features), dtype=np.float32)
         self.starting_balance = starting_balance
+        self.transaction_cost = 0.001 # hinzufügen von Transaktionskosten im Rahmen von 0.1% des Handelsvolumens
+        
         self.reset()
     
     def reset(self):
@@ -80,8 +92,26 @@ class CustomStockTradingEnv(gym.Env):
             * This includes the profit made upon selling some shares
         2. Current value of the portfolio (i.e. num_shares * current_price)
         '''
-        raw_reward = self.total_portfolio_value[-1] - self.total_portfolio_value[-2]
-        reward = np.clip(raw_reward, -1, 1) # Clip reward to be between -1 and 1
+        # raw_reward = self.total_portfolio_value[-1] - self.total_portfolio_value[-2]
+        # reward = np.clip(raw_reward, -1, 1) # Clip reward to be between -1 and 1
+        # return reward
+
+
+        # Calculate the profit made in the current trading period
+        current_portfolio_value = self.total_portfolio_value[-1]
+        previous_portfolio_value = self.total_portfolio_value[-2]
+        profit = current_portfolio_value - previous_portfolio_value
+
+        # Calculate the drawdown of the portfolio
+        max_portfolio_value = max(self.total_portfolio_value)
+        drawdown = (max_portfolio_value - current_portfolio_value) / max_portfolio_value
+
+        # Reward the agent based on the profit and penalize based on the drawdown
+        reward = 0.7 * profit - 0.3 * drawdown
+
+        # Clip reward to be between -1 and 1 to stabilize training
+        reward = np.clip(reward, -1, 1)
+
         return reward
     
     def _take_action(self, action):
@@ -93,7 +123,7 @@ class CustomStockTradingEnv(gym.Env):
             # Convert float to number of shares based on set "k" value (max number of shares to buy)
             # If you don't have enough money, just buy as many as you can
             shares_bought = min(int(self.account_balance[-1] / current_price), int(action * self.k))
-            self.account_balance.append(self.account_balance[-1] - shares_bought * current_price)
+            self.account_balance.append(self.account_balance[-1] - shares_bought * current_price * self.transaction_cost)
             self.num_shares.append(self.num_shares[-1] + shares_bought)
             self.total_portfolio_value.append(self.account_balance[-1] + self.num_shares[-1] * current_price)
             self.trades += 1
@@ -104,7 +134,7 @@ class CustomStockTradingEnv(gym.Env):
             # Convert float to number of shares based on set "k" value (max number of shares to sell)
             # If you don't have enough shares, just sell as many as you can
             shares_sold = min(self.num_shares[-1], int(-action * self.k))
-            self.account_balance.append(self.account_balance[-1] + shares_sold * current_price)
+            self.account_balance.append(self.account_balance[-1] + shares_sold * current_price * self.transaction_cost)
             self.num_shares.append(self.num_shares[-1] - shares_sold)
             self.total_portfolio_value.append(self.account_balance[-1] + self.num_shares[-1] * current_price)
             self.trades += 1

@@ -1,15 +1,19 @@
+# This script was used by us to downlaod and establish the 'appl.csv' as a basis for our dataset. 
+# It was downloaded at the 24th of July 2023 
+
+## Imports 
 import datetime
 import os
 import requests
 import pandas as pd
 import yfinance as yf
 
-
+## Definition of needed functions 
 def get_stock_names():
     '''
-    Get the needed Stocks
+    Get the needed Stocks: Apple Ticker == 'AAPL'
     '''
-    stock_names = ['APPL']
+    stock_names = ['AAPL']
     return stock_names
 
 
