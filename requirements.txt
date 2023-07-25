@@ -2,8 +2,10 @@ gym.spaces
 gym==0.26.2
 numpy==1.25.0
 datetime
-os
 yfinance==0.2.22
 requests==2.28.1
 pandas==1.4.2
-
+os
+pandas
+matplotlib
+stable-baselines3
